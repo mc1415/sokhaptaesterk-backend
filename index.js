@@ -16,11 +16,17 @@ const transferRoutes = require('./routes/transferRoutes');
 const dashboardRoutes = require('./routes/dashboardRoutes');
 const reportsRoutes = require('./routes/reportsRoutes');
 const paymentRoutes = require('./routes/paymentRoutes');
+const orderRoutes = require('./routes/orderRoutes');
+const settingsRoutes = require('./routes/settingsRoutes');
 
 // 4. Create the Express application
 const app = express();
 
-const allowedOrigins = [process.env.CORS_ORIGIN]; // The URL of your future Netlify site
+const allowedOrigins = [
+  process.env.CORS_ORIGIN,       // For your deployed production site
+  process.env.CORS_ORIGIN_LOCAL  // For your local development
+];
+
 const corsOptions = {
   origin: (origin, callback) => {
     // Allow requests with no origin (like mobile apps or curl requests)
@@ -44,7 +50,8 @@ app.use('/api/transfers', transferRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/reports', reportsRoutes);
 app.use('/api/payments', paymentRoutes);
-
+app.use('/api/orders', orderRoutes);
+app.use('/api/settings', settingsRoutes);
 
 // 7. Create a simple "health check" route to see if the server is running
 app.get('/api', (req, res) => {

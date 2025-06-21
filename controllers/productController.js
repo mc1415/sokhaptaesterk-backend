@@ -52,7 +52,6 @@ const getPublicProducts = async (req, res) => {
                 inventory ( quantity )
             `)
             .eq('is_active', true) // Only show active products
-            .gt('inventory.quantity', 0) // Only show products with stock > 0
             // You might add another .eq() to filter by a specific retail warehouse ID later
 
         if (error) throw error;
@@ -69,13 +68,56 @@ const getPublicProducts = async (req, res) => {
                 selling_price: product.selling_price,
                 stock_level: total_stock
             };
-        }).filter(p => p.stock_level > 0); // Final filter to remove items that might sum to 0
+        }); // Final filter to remove items that might sum to 0
 
         res.status(200).json(formattedData);
 
     } catch (err) {
         console.error('Error fetching public products:', err);
         res.status(500).json({ error: 'Failed to retrieve products.' });
+    }
+};
+
+const getProductById = async (req, res) => {
+    try {
+        const { id } = req.params; // Get the ID from the URL (e.g., /api/products/123)
+
+        const { data: product, error } = await supabase
+            .from('products')
+            .select(`
+                id,
+                name_en,
+                name_km,
+                description,
+                category,
+                image_url,
+                selling_price,
+                inventory ( quantity )
+            `)
+            .eq('id', id)
+            .eq('is_active', true) // Ensure we don't show inactive products
+            .single(); // .single() is crucial here, as we expect only one result
+
+        if (error && error.code !== 'PGRST116') {
+            // PGRST116 is the code for "no rows found", which we handle next.
+            // Throw other errors.
+            throw error;
+        }
+
+        if (!product) {
+            return res.status(404).json({ error: 'Product not found.' });
+        }
+        
+        // Just like in your other functions, let's calculate the total stock
+        const total_stock = product.inventory.reduce((sum, inv) => sum + inv.quantity, 0);
+        delete product.inventory; // Clean up the response object
+        product.stock_level = total_stock;
+
+        res.status(200).json(product);
+
+    } catch (err) {
+        console.error('Error fetching single product:', err.message);
+        res.status(500).json({ error: 'Failed to retrieve product.' });
     }
 };
 
@@ -181,6 +223,7 @@ const getDetailedInventory = async (req, res) => {
 module.exports = {
     getAllProductsWithInventory,
     getPublicProducts,
+    getProductById,
     createProduct,
     updateProduct,
     deleteProduct,

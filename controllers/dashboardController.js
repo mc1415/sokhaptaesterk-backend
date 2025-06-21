@@ -61,6 +61,50 @@ const getDashboardSummary = async (req, res) => {
     }
 };
 
+const getExpiringSoonProducts = async (req, res) => {
+    try {
+        const today = new Date().toISOString().split('T')[0];
+        const thirtyDaysFromNow = new Date();
+        thirtyDaysFromNow.setDate(thirtyDaysFromNow.getDate() + 30);
+        const expiryThresholdDate = thirtyDaysFromNow.toISOString().split('T')[0];
+
+        const { data, error } = await supabase
+            .from('inventory')
+            .select(`
+                quantity,
+                expiry_date,
+                batch_number,
+                product_id ( name_en, name_km, sku ),
+                warehouse_id ( name )
+            `)
+            .gt('quantity', 0)
+            .lte('expiry_date', expiryThresholdDate)
+            .gte('expiry_date', today)
+            .order('expiry_date', { ascending: true });
+
+        if (error) {
+            console.error("Supabase error in getExpiringSoonProducts:", error);
+            throw error;
+        }
+
+        // Now, let's rename the keys in the response for cleaner frontend code.
+        const formattedData = data.map(item => ({
+            ...item,
+            product: item.product_id, // Rename product_id to product
+            warehouse: item.warehouse_id, // Rename warehouse_id to warehouse
+            product_id: undefined, // Remove the old key
+            warehouse_id: undefined // Remove the old key
+        }));
+
+        res.status(200).json(formattedData);
+
+    } catch (err) {
+        console.error('Controller error in getExpiringSoonProducts:', err.message);
+        res.status(500).json({ error: 'Failed to retrieve expiring products.' });
+    }
+};
+
 module.exports = {
-    getDashboardSummary
+    getDashboardSummary,
+    getExpiringSoonProducts
 };

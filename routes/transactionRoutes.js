@@ -11,7 +11,8 @@ router.post('/sales', verifyToken, transactionController.createSale);
 router.get('/sales', verifyToken, transactionController.getSalesHistory);
 router.get('/sales/:id', verifyToken, transactionController.getSaleDetails);
 router.post('/stock', verifyToken, transactionController.adjustStock);
-
+router.get('/purchase-history', verifyToken, transactionController.getPurchaseHistory);
+router.post('/purchase', verifyToken, transactionController.recordNewPurchase);
 // We will add the stock adjustment route here later
 // router.post('/stock', verifyToken, transactionController.adjustStock);
 

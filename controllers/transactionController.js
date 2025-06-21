@@ -188,9 +188,99 @@ const adjustStock = async (req, res) => {
     }
 };
 
+const getPurchaseHistory = async (req, res) => {
+    try {
+        // We only want 'purchase_in' transactions for this history page.
+        const { data, error } = await supabase
+            .from('stock_adjustments')
+            .select(`
+                id,
+                created_at,
+                adjustment_quantity,
+                reason,
+                notes,
+                product:products ( name_en, name_km, sku ),
+                warehouse:warehouses ( name ),
+                staff:staff ( full_name )
+            `)
+            .eq('reason', 'purchase_in') // Filter for only purchase transactions
+            .order('created_at', { ascending: false }); // Show most recent first
+
+        if (error) throw error;
+
+        res.status(200).json(data);
+
+    } catch (err) {
+        console.error('Error fetching purchase history:', err.message);
+        res.status(500).json({ error: 'Failed to retrieve purchase history.' });
+    }
+};
+
+const recordNewPurchase = async (req, res) => {
+    // Get all the details for the new batch from the request body
+    const { product_id, warehouse_id, quantity, notes, expiry_date, batch_number, cost } = req.body;
+    const staff_id = req.user.id; // Get the logged-in user's ID
+
+    // --- Validation ---
+    if (!product_id || !warehouse_id || !quantity) {
+        return res.status(400).json({ error: 'Product, warehouse, and quantity are required.' });
+    }
+    if (quantity <= 0) {
+        return res.status(400).json({ error: 'Purchase quantity must be a positive number.' });
+    }
+
+    try {
+        // --- CORE LOGIC: INSERT A NEW BATCH ---
+        // This creates a new, separate record for this specific batch.
+        // It does NOT touch any other inventory records for the same product.
+        const { data: newInventoryBatch, error: inventoryError } = await supabase
+            .from('inventory')
+            .insert({
+                product_id: product_id,
+                warehouse_id: warehouse_id,
+                quantity: quantity,
+                expiry_date: expiry_date || null, // Set to null if empty
+                batch_number: batch_number || null, // Set to null if empty
+            })
+            .select()
+            .single();
+
+        if (inventoryError) {
+            console.error("Supabase inventory insert error:", inventoryError);
+            throw new Error("Failed to create new inventory batch.");
+        }
+
+        // --- AUDITING: Record this action in the stock_adjustments table ---
+        // This is crucial for tracking history.
+        const { error: adjustmentError } = await supabase
+            .from('stock_adjustments')
+            .insert({
+                product_id: product_id,
+                warehouse_id: warehouse_id,
+                staff_id: staff_id,
+                adjustment_quantity: quantity, // This is a positive number for a purchase
+                reason: 'purchase_in',
+                notes: `Batch: ${batch_number || 'N/A'}. Expires: ${expiry_date || 'N/A'}. ${notes || ''}`,
+            });
+
+        if (adjustmentError) {
+            // This is not a fatal error (the stock was added), but it should be logged.
+            console.error("Supabase adjustment logging error:", adjustmentError);
+        }
+        
+        res.status(201).json({ message: 'New batch recorded successfully.', data: newInventoryBatch });
+
+    } catch (err) {
+        console.error('Error in recordNewPurchase controller:', err);
+        res.status(500).json({ error: 'Failed to record purchase.' });
+    }
+};
+
 module.exports = {
     createSale,
     getSalesHistory,
     getSaleDetails,
-    adjustStock
+    adjustStock,
+    getPurchaseHistory,
+    recordNewPurchase
 };
