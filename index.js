@@ -22,15 +22,27 @@ const settingsRoutes = require('./routes/settingsRoutes');
 // 4. Create the Express application
 const app = express();
 
+const defaultLocalOrigins = [
+  'http://localhost:3000',
+  'http://localhost:5173',
+  'http://localhost:4173',
+  'http://localhost:8080',
+  'http://127.0.0.1:5500'
+];
+
 const allowedOrigins = [
   process.env.CORS_ORIGIN,       // For your deployed production site
-  process.env.CORS_ORIGIN_LOCAL  // For your local development
-];
+  process.env.CORS_ORIGIN_LOCAL, // For your local development
+  ...defaultLocalOrigins
+].filter(Boolean);
 
 const corsOptions = {
   origin: (origin, callback) => {
     // Allow requests with no origin (like mobile apps or curl requests)
     if (!origin) return callback(null, true);
+    if (allowedOrigins.length === 0 && process.env.NODE_ENV !== 'production') {
+      return callback(null, true);
+    }
     if (allowedOrigins.indexOf(origin) === -1) {
       const msg = 'The CORS policy for this site does not allow access from the specified Origin.';
       return callback(new Error(msg), false);

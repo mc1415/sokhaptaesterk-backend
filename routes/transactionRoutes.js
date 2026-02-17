@@ -10,6 +10,7 @@ const { verifyToken } = require('../middleware/authMiddleware');
 router.post('/sales', verifyToken, transactionController.createSale);
 router.get('/sales', verifyToken, transactionController.getSalesHistory);
 router.get('/sales/:id', verifyToken, transactionController.getSaleDetails);
+router.delete('/sales/:id', verifyToken, transactionController.deleteSale);
 router.post('/stock', verifyToken, transactionController.adjustStock);
 router.get('/purchase-history', verifyToken, transactionController.getPurchaseHistory);
 router.post('/purchase', verifyToken, transactionController.recordNewPurchase);

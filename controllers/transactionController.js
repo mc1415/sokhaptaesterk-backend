@@ -160,6 +160,25 @@ const getSaleDetails = async (req, res) => {
     }
 };
 
+const deleteSale = async (req, res) => {
+    const { id } = req.params;
+    const staff_id = req.user.id;
+
+    try {
+        const { error } = await supabase.rpc('revert_sale', {
+            p_sale_id: id,
+            p_staff_id: staff_id
+        });
+
+        if (error) throw error;
+
+        res.status(200).json({ message: 'Sale reverted successfully.' });
+    } catch (err) {
+        console.error(`Error reverting sale ${id}:`, err);
+        res.status(500).json({ error: 'Failed to revert sale.', details: err.message });
+    }
+};
+
 const adjustStock = async (req, res) => {
     const { product_id, warehouse_id, adjustment_quantity, reason, notes } = req.body;
     const staff_id = req.user.id;
@@ -280,6 +299,7 @@ module.exports = {
     createSale,
     getSalesHistory,
     getSaleDetails,
+    deleteSale,
     adjustStock,
     getPurchaseHistory,
     recordNewPurchase
